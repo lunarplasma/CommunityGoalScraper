@@ -1,40 +1,84 @@
 import requests
 from bs4 import BeautifulSoup
+import logging
+from typing import List, Dict
+from collections import OrderedDict
+from datetime import datetime
+
+logger = logging.getLogger(__file__)
+
+INARA_URL = "https://inara.cz/galaxy-communitygoals/"
 
 
-if __name__ == '__main__':
-    URL = 'https://inara.cz/galaxy-communitygoals/'
-    page = requests.get(URL)
+def to_int(string):
+    """Just replaces the number strings which have commas to an int."""
+    return int(string.replace(",", ""))
 
-    soup = BeautifulSoup(page.content, 'html.parser')
 
-    main = soup.find_all(name='div', class_='maincontent1')
+def scrape_inara_cgs(url: str = INARA_URL) -> List[Dict]:
+    page = requests.get(url)
 
-    main_blocks = soup.select('.maincontent1 > .mainblock')
+    soup = BeautifulSoup(page.content, "html.parser")
+    main_blocks = soup.select(".maincontent1 > .mainblock")
 
     community_goals = []
 
+    logger.debug("Parsing blocks.")
     for block in main_blocks:
-        cg = {}
+        cg = OrderedDict()
         cg['title'] = block.find_previous_sibling('h3').text
-        infos = block.select('.itempaircontainer')
+        cg['timestamp'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        logger.info(f"Starting to parse: {cg['title']}")
+        info = block.select('.itempaircontainer')
 
         # Get the main info
-        for pair in infos:
-            key = pair.select_one('.itempairlabel').text[:-1]  # remove the ':' at the end
-            value = pair.select_one('.itempairvalue').text
+        logger.debug(f"Parsing main info block.")
+        for pair in info:
+            key_name = pair.select_one('.itempairlabel').text.replace(" ", "_")
+            key = key_name.replace(":", "").lower()
+            value = pair.select_one(".itempairvalue").text
             cg[key] = value
 
-        # Get the rewards structure
-        tbl = block.find('tbody')
-        rows = tbl.find_all('tr')
-        cg['Top10'] = rows[0].find_all('td')[1].text[2:]
-        cg['Top10pct'] = rows[1].find_all('td')[1].text[2:]
-        cg['Top25pct'] = rows[2].find_all('td')[1].text[2:]
-        cg['Top50pct'] = rows[3].find_all('td')[1].text[2:]
-        cg['Top75pct'] = rows[4].find_all('td')[1].text[2:]
-        cg['Top100pct'] = rows[5].find_all('td')[1].text[2:]
+        logger.debug(f"Cleaning up the main block")
+        cg["contributors"] = to_int(cg["contributors"])
+        contributions = cg["contributions"].split("/")
+        cg["contributions"] = to_int(contributions[0])
 
+        # gets rid of the "percent" bit: like (10%)
+        cg["contributions_total"] = to_int(contributions[0].split(" ")[0])
+
+        # Convert the time left:
+        logger.debug('Converting time left.')
+        if cg["status"] == "Ongoing":
+            time_list = cg["time_left"].split(" ")
+            cg["days_left"] = int(time_list[0].replace("D", ""))
+            cg["hours_left"] = int(time_list[1].replace("H", ""))
+            cg["minutes_left"] = int(time_list[2].replace("M", ""))
+
+        # Get the rewards structure
+        logger.debug(f"Parsing rewards structure.")
+        tbl = block.find("tbody")
+        rows = tbl.find_all("tr")
+
+        items = [
+            "top10cmdrs",
+            "top10pct",
+            "top25pct",
+            "top50pct",
+            "top75pct",
+            "top100pct",
+        ]
+
+        for i in range(0, len(items)):
+            logger.debug(f'Parsing {rows[i].text}')
+            # Split something like: "500 to 1,000" to ["500", "1,000"]
+            values = rows[i].find_all("td")[1].text[2:].split(" to ")
+            # Now clean that up.
+            cg[items[i] + "_min"] = to_int(values[0])
+            cg[items[i] + "_max"] = to_int(values[1])
+
+        logger.info(f"Finished parsing {cg['title']}")
         community_goals.append(cg)
 
-    ongoing_cg = [cg for cg in community_goals if cg['Status'] == 'Ongoing']
+    return community_goals
+

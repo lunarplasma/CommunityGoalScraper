@@ -1,0 +1,1 @@
+pyinstaller poll.py --onefile

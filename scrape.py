@@ -5,9 +5,13 @@ from typing import List, Dict
 from collections import OrderedDict
 from datetime import datetime
 
+import re
+
 logger = logging.getLogger(__file__)
 
 INARA_URL = "https://inara.cz/galaxy-communitygoals/"
+
+date_matcher = re.compile(r'((?P<days>\d+)D)? ?((?P<hours>\d+)H)? ?((?P<mins>\d+)M)?')
 
 
 def to_int(string):
@@ -50,10 +54,10 @@ def scrape_inara_cgs(url: str = INARA_URL) -> List[Dict]:
         # Convert the time left:
         logger.debug('Converting time left.')
         if cg["status"] == "Ongoing":
-            time_list = cg["time_left"].split(" ")
-            cg["days_left"] = int(time_list[0].replace("D", ""))
-            cg["hours_left"] = int(time_list[1].replace("H", ""))
-            cg["minutes_left"] = int(time_list[2].replace("M", ""))
+            match = date_matcher.fullmatch(cg['time_left'])
+            cg["days_left"] = int(match['days'] or 0)
+            cg["hours_left"] = int(match['hours'] or 0)
+            cg["minutes_left"] = int(match['mins'] or 0)
 
         # Get the rewards structure
         logger.debug(f"Parsing rewards structure.")

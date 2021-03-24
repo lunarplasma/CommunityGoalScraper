@@ -12,6 +12,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+__version__ = 0.2
+
 POLL_DEFAULT = 600
 FILE_DEFAULT = 'CG.csv'
 
@@ -39,7 +41,7 @@ if __name__ == '__main__':
 
     file_path = os.path.abspath(args.filename)
 
-    logger.info(f"Starting poller.")
+    logger.info(f"Starting poller version {__version__}.")
     logger.info(f"Time between polls: {args.time} seconds")
     logger.info(f"Saving to file: {file_path}")
 

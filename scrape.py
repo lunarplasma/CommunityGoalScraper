@@ -75,11 +75,21 @@ def scrape_inara_cgs(url: str = INARA_URL) -> List[Dict]:
 
         for i in range(0, len(items)):
             logger.debug(f'Parsing {rows[i].text}')
+            min_val = None
+            max_val = None
             # Split something like: "500 to 1,000" to ["500", "1,000"]
-            values = rows[i].find_all("td")[1].text[2:].split(" to ")
-            # Now clean that up.
-            cg[items[i] + "_min"] = to_int(values[0])
-            cg[items[i] + "_max"] = to_int(values[1])
+            # values = rows[i].find_all("td")[1].text[2:].split(" to ")
+            row_values = rows[i].find_all("td")
+            values_text = row_values[1].text
+            if values_text is not "Unknown":
+                values = values_text[2:].split(" to ")
+                # Now clean that up.
+                min_val = to_int(values[0])
+                if len(values) > 1:
+                    max_val = to_int(values[1])
+            cg[items[i] + "_min"] = min_val
+            cg[items[i] + "_max"] = max_val
+
 
         logger.info(f"Finished parsing {cg['title']}")
         community_goals.append(cg)

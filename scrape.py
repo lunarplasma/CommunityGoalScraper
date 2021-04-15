@@ -81,7 +81,7 @@ def scrape_inara_cgs(url: str = INARA_URL) -> List[Dict]:
             # values = rows[i].find_all("td")[1].text[2:].split(" to ")
             row_values = rows[i].find_all("td")
             values_text = row_values[1].text
-            if values_text is not "Unknown":
+            if values_text != "Unknown":
                 values = values_text[2:].split(" to ")
                 # Now clean that up.
                 min_val = to_int(values[0])
